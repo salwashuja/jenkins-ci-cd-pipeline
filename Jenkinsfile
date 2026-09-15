@@ -15,9 +15,16 @@ pipeline {
 
         stage('Build') {
             steps {
-                echo 'Installing dependencies and validating the app...'
+                echo 'Installing dependencies...'
                 sh 'npm install'
+            }
+        }
+
+        stage('Validate') {
+            steps {
+                echo 'Validating application syntax and exports...'
                 sh 'node --check app.js'
+                sh "node -e \"const app=require('./app'); if (typeof app.add !== 'function') { throw new Error('add() function is missing'); } console.log('Validation passed');\""
             }
         }
 
@@ -34,10 +41,10 @@ pipeline {
             echo 'Pipeline completed.'
         }
         success {
-            echo 'Build and tests passed successfully.'
+            echo 'Build, validation, and tests passed successfully.'
         }
         failure {
-            echo 'Build or tests failed.'
+            echo 'Build, validation, or tests failed.'
         }
     }
 }
