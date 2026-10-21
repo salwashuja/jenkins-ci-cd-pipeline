@@ -4,14 +4,11 @@ pipeline {
     tools {
         nodejs 'NODEJS-20'
     }
-    environment {
-        registry = "docker.io"
-        imageName = "wajhip/jenkins-nodejs-app"
-        registryCredential = "dockerhub-credentials"
-        imageTag = "${env.BUILD_NUMBER}"
-        imageWithTag = "${imageName}:${imageTag}"
-        fullImageName = "${registry}/${imageWithTag}"
 
+    environment {
+        DOCKER_REGISTRY = 'docker.io'
+        DOCKER_IMAGE = 'wajhip/jenkins-nodejs-app'
+        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'
     }
 
     stages {
@@ -25,7 +22,7 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Installing dependencies...'
-                sh 'npm install'
+                sh 'npm ci'
             }
         }
 
@@ -46,23 +43,23 @@ pipeline {
         stage('Package') {
             steps {
                 echo 'Building Docker image...'
-                sh "docker build -t ${fullImageName} ."
+                sh 'docker build -t "$DOCKER_REGISTRY/$DOCKER_IMAGE:$BUILD_NUMBER" .'
             }
         }
 
         stage('Push Docker Image') {
             steps {
                 echo 'Pushing Docker image to registry...'
-                withCredentials([usernamePassword(credentialsId: "${registryCredential}", passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
-                    sh "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin ${registry}"
-                    sh "docker push ${fullImageName}"
+                withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDENTIALS_ID, passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login "$DOCKER_REGISTRY" --username "$DOCKER_USERNAME" --password-stdin
+                        docker push "$DOCKER_REGISTRY/$DOCKER_IMAGE:$BUILD_NUMBER"
+                        docker logout "$DOCKER_REGISTRY"
+                    '''
                 }
-            } 
             }
+        }
     }
-
-        
-
 
     post {
         always {
